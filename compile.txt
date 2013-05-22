@@ -1,4 +1,0 @@
-build swf.
-haxe -cp ./src -main org.xiph.frontend.SoundFactory -swf-version 10 -swf9 ./bin/EnneaSound.swf
-build swc.
-haxe -cp ./src -main org.xiph.frontend.SoundFactory -swf-version 10 -swf9 ./bin/EnneaSound.swc
