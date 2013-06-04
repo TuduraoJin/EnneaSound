@@ -45,10 +45,10 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 * @param	offset 再生開始位置。ループ再生の場合、毎回オフセットの位置から再生される。
 	 * @param	volume 音量。 0(min) - 1.0(max)
 	 * @param	pan パン。 -1(left) - 0(center) - 1(right)
-	 * @param	?loop Loop count. 0 or 1 = once. If more, The number of times to play.ループ回数。0,1なら1回再生。それ以上の場合、数字の回数分再生する。
-	 * @param	?slc used to buffer the size of the decoder.　デコーダーのバッファサイズに用いる。
+	 * @param	loop Loop count. 0 or 1 = once. If more, The number of times to play.ループ回数。0,1なら1回再生。それ以上の場合、数字の回数分再生する。
+	 * @param	bufferTime used to buffer the size of the decoder.　デコーダーのバッファサイズに用いる。
 	 */
-	public function new(data:ByteArray, offset:Float, volume:Float, pan:Float , ?loop:Int = 0 , ?bufferTime:Int = 1000 ) 
+	public function new(data:ByteArray, offset:Float, volume:Float, pan:Float , loop:Int = 0 , bufferTime:Int = 1000 ) 
 	{
         super();
 		this._bufferTime = bufferTime;
@@ -125,13 +125,7 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
     private function chSoundCompleteHandler(e:Event) {
 		trace("end play pos = " + Std.string(this._sch.position ) + " length=" + Std.string(this._playLength) + " getPos=" + Std.string(this.getPosition()) );
-		
-		if ( _sch != null ) {
-			_sch.removeEventListener(Event.SOUND_COMPLETE, chSoundCompleteHandler);
-			this._sch = null;
-		}
-		this.isPlayed = false;
-		this._loopCount = 0;
+		this.stop();
         dispatchEvent( e.clone() );
     }
 	
@@ -163,7 +157,11 @@ class OGGVorbisChannel extends BaseSoundChannel
 		trace("[OGGVorbisChannel] <decSeekCompleteHandler> isPlayed=" + Std.string(this.isPlayed) );
 		if ( this.isPlayed )
 		{
-			this._dec.processStart(); //decode start
+			if ( (this._dec.isBufferOK || this._dec.isBufferMAX) && _loopCount == 0 ){
+				this.playSound();		//play sound
+			}else{
+				this._dec.processStart(); //decode start
+			}
 		}
 	}
 	
@@ -175,15 +173,22 @@ class OGGVorbisChannel extends BaseSoundChannel
 	private function decBufferStoreUpOKHandler(e:OggDecoderEvent):Void 
 	{
 		//play sound
+		this.playSound();
+	}
+	
+	/**
+	 * play sound.
+	 */
+	private function playSound():Void
+	{
 		if (_sch == null && isPlayed ) {
             _sch = _s.play( 0 , 0 , this._st );
 			if ( this._sch != null )
 			{
 				_sch.addEventListener(Event.SOUND_COMPLETE, chSoundCompleteHandler);
 			}else {
-				//channel max
-				this.isPlayed = false;
-				this._loopCount = 0;
+				//channel max. can't create SoundChannel.
+				this.stop();
 			}
         }
 	}
@@ -200,13 +205,13 @@ class OGGVorbisChannel extends BaseSoundChannel
 		//loop
 		if ( _loopCount < loop - 1 )
 		{
+			_loopCount++;
 			var ret:Int = this.seek_time( this._offset );
 			
 			if ( ret < 0) {
 				trace("seekTop for loop is error.");
 				_loopCount = loop - 1;
 			}
-			_loopCount++;
 		}
 	}
 
@@ -220,13 +225,13 @@ class OGGVorbisChannel extends BaseSoundChannel
 	/**
 	 * start process.
 	 */
-	public override function play(?inOffset:Float, ?inVol:Float, ?inPan:Float, ?inLoop:Int):Void 
+	public override function play( inOffset:Float = -1 , inVol:Float = -1 , inPan:Float = -2 ,inLoop:Int = -1 ):Void
 	{
 		super.play( inOffset, inVol, inPan, inLoop);
+		if ( isPlayed ){	this.stop();	}
 		this.isPlayed = true;
 		
-		if ( this._dec.isHeaderProcessed )
-		{
+		if ( this._dec.isHeaderProcessed ){
 			this.seek_time(_offset);
 		}else {
 			this._dec.processHeader();
@@ -240,7 +245,7 @@ class OGGVorbisChannel extends BaseSoundChannel
 	{
 		if ( _sch == null )
 		{
-			trace("[OGGChannel] <stop> SoundChannel = null ");
+			trace("[OGGVorbisChannel] <stop> SoundChannel = null ");
 		}else {
 			_sch.removeEventListener(Event.SOUND_COMPLETE, chSoundCompleteHandler);
 			_sch.stop();
@@ -248,6 +253,7 @@ class OGGVorbisChannel extends BaseSoundChannel
 		}
 		this.isPlayed = false;
 		this._loopCount = 0;
+		this._dec.processStop();
 		this._dec.clearBuffer();
     }
 
@@ -257,16 +263,14 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
     public override function getPosition() : Float 
 	{
-		if ( _sch != null )	
-		{
+		if ( _sch == null )	{        return 0;		}
+		else{
 			if ( 0 == loop ) {
 				return this._sch.position + this._offset;
 			}else{
 				return (this._sch.position + ( (_loopCount + 1) * this._offset)) - ( _loopCount  * _playLength);		
 			}
 		}
-		
-        return 0;
     }
     
 	/**
@@ -275,8 +279,9 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
     public override function getVolume() : Float 
 	{
-		if ( _sch != null )	{	return this._sch.soundTransform.volume;		}
-		return 0;
+		if ( _sch == null )	{	return this._st.volume;		}
+		else{	return this._sch.soundTransform.volume;		}
+		//return 0;
     }
     
 	/**
@@ -285,8 +290,9 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
     public override function getPan() : Float 
 	{
-		if ( _sch != null )	{	return this._sch.soundTransform.pan;		}
-        return 0;
+		if ( _sch == null )	{	return this._st.pan;		}
+		else{	return this._sch.soundTransform.pan;		}
+        //return 0;
     }
     
 	/**
@@ -295,8 +301,10 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
     public override function setVolume(volume : Float) : Void 
 	{
-		if ( _sch != null )	
+		if ( _sch == null )	
 		{
+			this._st.volume = volume;
+		}else{
 			var t : SoundTransform = this._sch.soundTransform;
 			t.volume = volume;
 			this._sch.soundTransform = t;
@@ -309,8 +317,10 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
     public override function setPan(pan : Float) : Void 
 	{
-		if ( _sch != null )	
+		if ( _sch == null )	
 		{
+			this._st.pan = pan;
+		}else {
 			var t : SoundTransform = this._sch.soundTransform;
 			t.pan = pan;
 			this._sch.soundTransform = t;

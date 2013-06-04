@@ -49,7 +49,7 @@ class OggDecoder extends EventDispatcher
 	public static var BUFFER_COFF_LENGTH:Float = 2.5;
 	public static var BUFFER_COFF_REDLINE:Float = 2;
 	public static var BUFFER_COFF_GREENLINE:Float = 1;
-	
+	private static inline var BUFFER_SAMPLE_RATE:Int = 44100;
 	
 	/**
 	 * Constructor
@@ -101,13 +101,16 @@ class OggDecoder extends EventDispatcher
 	 */
 	public function clearBuffer():Void
 	{
-		this._pcmRb.clear();
+		if ( _isHeaderProcessed )
+		{
+			this._pcmRb.clear();
+			_pcm = [null];
+			_index = new Vector( _vi.channels, true);
+		}
 		this._need_samples = true;
 		this._eos = false;
 		_vd.synthesis_init(_vi);
 		_vb.init(_vd);
-		_pcm = [null];
-		_index = new Vector( _vi.channels, true);
 	}
 	
 	/**
@@ -123,10 +126,13 @@ class OggDecoder extends EventDispatcher
 		this._isHeaderProcessed = false;
 		this._isDecoding = false;
 		this._eos = false;
-		this._pcmRb.clear();
-		this._pcmRb = null;
-		_pcm = [null];
-		_index = null;
+		if ( _isHeaderProcessed )
+		{
+			this._pcmRb.clear();
+			this._pcmRb = null;
+			_pcm = [null];
+			_index = null;
+		}
 		this._dmx.pageseek_head();
 		this._dmx.set_packet_cb( -1 , _proc_packet_head );
 	}
@@ -373,7 +379,8 @@ class OggDecoder extends EventDispatcher
 				_index = new Vector( _vi.channels, true);
 				
 				//Initialize the buffer.
-				var buf_len:UInt = cast( (this._bufferTimeMS * _vi.rate) / 1000 , UInt ) * 8;
+				//var buf_len:UInt = cast( (this._bufferTimeMS * _vi.rate) / 1000 , UInt ) * 8;
+				var buf_len:UInt = cast( (this._bufferTimeMS * BUFFER_SAMPLE_RATE) / 1000 , UInt ) * 8;
 				_pcmRb = new PCMRingBuffer( 
 					cast(buf_len * BUFFER_COFF_LENGTH , UInt), 
 					cast(buf_len * BUFFER_COFF_GREENLINE , UInt),
@@ -416,7 +423,7 @@ class OggDecoder extends EventDispatcher
 		while ((samples = _vd.synthesis_pcmout(_pcm, _index)) > 0) 
 		{
 			//trace("[OggDecoder] <_proc_packet_body> Packet No." + Std.string(p.packetno) + " samples=" + Std.string(samples) );
-			ret = this._pcmRb.writePCM( _pcm[0] , _index , samples );
+			ret = this._pcmRb.writePCM( _pcm[0] , _index , samples , cast((44100 / _vi.rate) , Int) ); //data write
 			_vd.synthesis_read(samples);
 			if ( ret < 0 ) {	return OggVorbisDemuxerStatus.STOP;		}
 		}
@@ -459,7 +466,7 @@ class OggDecoder extends EventDispatcher
 				{
 					_index[i] += samples - ((this._seekPCMprevGpos + _sample_total) - this._seekPCMTargetGpos );
 				}
-				this._pcmRb.writePCM( _pcm[0] , _index , samples ); //data write
+				this._pcmRb.writePCM( _pcm[0] , _index , samples , cast((44100 / _vi.rate) , Int) ); //data write
 				this._vd.synthesis_read(samples);
 				this._dmx.remove_packet_cb( sn );
 				this._dmx.set_packet_cb( sn , this._proc_packet_body ); //packet callback reset

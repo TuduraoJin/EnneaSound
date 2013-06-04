@@ -37,10 +37,10 @@ class RingBuffer extends EventDispatcher
 	/**
 	 * Constructor
 	 * @param	inLength  buffer length. Must be greater than GreenLine and RedLine.
-	 * @param	?inGreenLine  GreenLine = 0.
-	 * @param	?inRedLine  RedLine = 0. Must be greater than GreenLine.
+	 * @param	inGreenLine  GreenLine = 0.
+	 * @param	inRedLine  RedLine = 0. Must be greater than GreenLine.
 	 */
-    public function new( inLength:UInt , ?inGreenLine:UInt = 0 , ?inRedLine:UInt = 0 )
+    public function new( inLength:UInt , inGreenLine:UInt = 0 , inRedLine:UInt = 0 )
 	{
 		super();
 		this.setLength( inLength , inGreenLine , inRedLine );
@@ -59,14 +59,14 @@ class RingBuffer extends EventDispatcher
 	/**
 	 * set up the buffer length.
 	 * @param	inLength  buffer length. Must be greater than GreenLine and RedLine.
-	 * @param	?inGreenLine  GreenLine = 0.
-	 * @param	?inRedLine  RedLine = 0. Must be greater than GreenLine.
+	 * @param	inGreenLine  GreenLine = 0.
+	 * @param	inRedLine  RedLine = 0. Must be greater than GreenLine.
 	 * @eventType OVER_GREENLINE
 	 * @eventType OVER_REDLINE
 	 * @eventType UNDER_GREENLINE
 	 * @eventType UNDER_REDLINE
 	 */
-    public function setLength( inLength:UInt , ?inGreenLine:UInt = 0 , ?inRedLine:UInt = 0 ):Void
+    public function setLength( inLength:UInt , inGreenLine:UInt = 0 , inRedLine:UInt = 0 ):Void
 	{
 		this._length = inLength;
 		if ( inGreenLine == 0 ) {	this.greenLine = cast(_length * 0.5 , UInt);	}
@@ -99,11 +99,11 @@ class RingBuffer extends EventDispatcher
 	 * write data.
 	 * @param	inData  The data to be written
 	 * @param	inLength  The length of the data to be written
-	 * @param	?inOffset  Position at the beginning of the data to be written
+	 * @param	inOffset  Position at the beginning of the data to be written
 	 * @return return value is length of  write data. if value is minus mean overflow.
 	 * @eventType WRITE_OVERFLOW
 	 */
-	public function write( inData:Bytes , inLength:UInt , ?inOffset:UInt = 0):Int
+	public function write( inData:Bytes , inLength:UInt , inOffset:UInt = 0):Int
 	{
 		var write_len:UInt = inLength;
 		var over_len:UInt = 0;
@@ -189,6 +189,7 @@ class RingBuffer extends EventDispatcher
 		if ( over_len != 0)
 		{
 			//read from overflow
+			if ( _overflowBuff.length < over_len ) {	over_len = _overflowBuff.length;	}
 			dst.writeBytes( _overflowBuff , 0 , over_len );
 			
 			//resize overflow

@@ -263,16 +263,14 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
     public override function getPosition() : Float 
 	{
-		if ( _sch != null )	
-		{
+		if ( _sch == null )	{        return 0;		}
+		else{
 			if ( 0 == loop ) {
 				return this._sch.position + this._offset;
 			}else{
 				return (this._sch.position + ( (_loopCount + 1) * this._offset)) - ( _loopCount  * _playLength);		
 			}
 		}
-		
-        return 0;
     }
     
 	/**
@@ -281,8 +279,9 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
     public override function getVolume() : Float 
 	{
-		if ( _sch != null )	{	return this._sch.soundTransform.volume;		}
-		return 0;
+		if ( _sch == null )	{	return this._st.volume;		}
+		else{	return this._sch.soundTransform.volume;		}
+		//return 0;
     }
     
 	/**
@@ -291,8 +290,9 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
     public override function getPan() : Float 
 	{
-		if ( _sch != null )	{	return this._sch.soundTransform.pan;		}
-        return 0;
+		if ( _sch == null )	{	return this._st.pan;		}
+		else{	return this._sch.soundTransform.pan;		}
+        //return 0;
     }
     
 	/**
@@ -301,8 +301,10 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
     public override function setVolume(volume : Float) : Void 
 	{
-		if ( _sch != null )	
+		if ( _sch == null )	
 		{
+			this._st.volume = volume;
+		}else{
 			var t : SoundTransform = this._sch.soundTransform;
 			t.volume = volume;
 			this._sch.soundTransform = t;
@@ -315,8 +317,10 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
     public override function setPan(pan : Float) : Void 
 	{
-		if ( _sch != null )	
+		if ( _sch == null )	
 		{
+			this._st.pan = pan;
+		}else {
 			var t : SoundTransform = this._sch.soundTransform;
 			t.pan = pan;
 			this._sch.soundTransform = t;

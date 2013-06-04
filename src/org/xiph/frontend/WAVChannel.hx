@@ -23,6 +23,10 @@ class WAVChannel extends BaseSoundChannel
 	public override function dispose():Void
 	{
 		super.dispose();
+		if ( _sch != null )
+		{
+			this._sch.removeEventListener(Event.SOUND_COMPLETE, channelComplete);
+		}
 		this._sch = null;
 		this._s = null;
 		this.isPlayed = false;
@@ -45,6 +49,7 @@ class WAVChannel extends BaseSoundChannel
     
     public override function stop() : Void 
 	{
+		if ( _sch == null ) {	return;	}
         this._sch.removeEventListener(Event.SOUND_COMPLETE, channelComplete);
         this._sch.stop();
 		this._sch = null;
@@ -53,31 +58,44 @@ class WAVChannel extends BaseSoundChannel
 
     public override function getPosition() : Float 
 	{
+		if ( _sch == null ) {	return 0;	}
         return this._sch.position;
     }
     
     public override function getVolume() : Float 
 	{
-        return this._sch.soundTransform.volume;
+		if ( _sch == null ) {	return this._st.volume;		}
+		else {		return this._sch.soundTransform.volume;		}
     }
     
     public override function getPan() : Float 
 	{
-        return this._sch.soundTransform.pan;
+        if ( _sch == null ) {	return this._st.pan;		}
+		else {		return this._sch.soundTransform.pan;		}
     }
     
     public override function setVolume(volume : Float) : Void 
 	{
-        var t : SoundTransform = this._sch.soundTransform;
-        t.volume = volume;
-        this._sch.soundTransform = t;
+		if ( _sch == null ) 
+		{
+			this._st.volume = volume;
+		}else {
+			var t : SoundTransform = this._sch.soundTransform;
+			t.volume = volume;
+			this._sch.soundTransform = t;
+		}
     }
     
     public override function setPan(pan : Float) : Void 
 	{
-        var t : SoundTransform = this._sch.soundTransform;
-        t.pan = pan;
-        this._sch.soundTransform = t;        
+		if ( _sch == null ) 
+		{
+			this._st.pan = pan;	
+		}else {
+			var t : SoundTransform = this._sch.soundTransform;
+			t.pan = pan;
+			this._sch.soundTransform = t;
+		}      
     }
     
     private function channelComplete(e:Event) 

@@ -189,6 +189,7 @@ class RingBuffer extends EventDispatcher
 		if ( over_len != 0)
 		{
 			//read from overflow
+			if ( _overflowBuff.length < over_len ) {	over_len = _overflowBuff.length;	}
 			dst.writeBytes( _overflowBuff , 0 , over_len );
 			
 			//resize overflow

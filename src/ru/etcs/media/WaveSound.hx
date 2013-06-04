@@ -31,6 +31,7 @@ import flash.media.SoundChannel;
 import flash.media.SoundTransform;
 import flash.net.URLRequest;
 import flash.net.URLStream;
+import flash.system.LoaderContext;
 import flash.utils.ByteArray;
 import flash.utils.Endian;
 
@@ -135,7 +136,9 @@ class WaveSound extends EventDispatcher {
 		var swf:SWFFormat = new SWFFormat(waveFormat);
 		var compiledSWF:ByteArray = swf.compileSWF(waveData);
 		var loader:Loader = new Loader();
-		loader.loadBytes(compiledSWF);
+		var context : LoaderContext = new LoaderContext();
+		context.allowCodeImport = true;
+		loader.loadBytes(compiledSWF, context);
 		loader.contentLoaderInfo.addEventListener(Event.COMPLETE,generateCompleteHandler);
 	}
 	
