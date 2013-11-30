@@ -7,6 +7,7 @@ import org.xiph.fogg.Page;
 import org.xiph.fogg.SeekableSyncState;
 import org.xiph.fogg.StreamState;
 import org.xiph.system.Bytes;
+import flash.utils.TypedDictionary;
 
 /**
  * Demuxer with a seek function. シーク機能を持つDemuxer...
@@ -27,18 +28,18 @@ class OggVorbisDemuxer
     private var _og : Page;
     private var _op : Packet;
     private var _bos_done : Bool;
-    private var _streams : IntHash<StreamState>;
-    private var _page_cbs : IntHash<Page -> Int -> OggVorbisDemuxerStatus>;
-    private var _packet_cbs : IntHash<Packet -> Int -> OggVorbisDemuxerStatus>;
+    private var _streams : TypedDictionary<Int,StreamState>;
+    private var _page_cbs : TypedDictionary<Int,Page -> Int -> OggVorbisDemuxerStatus>;
+    private var _packet_cbs : TypedDictionary<Int,Packet -> Int -> OggVorbisDemuxerStatus>;
 
 	/**
 	 * Cunstructor
 	 */
 	public function new() 
 	{
-        _page_cbs = new IntHash();
-        _packet_cbs = new IntHash();
-        _streams = new IntHash();
+        _page_cbs = new TypedDictionary();
+        _packet_cbs = new TypedDictionary();
+        _streams = new TypedDictionary();
         _bos_done = false;
         _oy = new SeekableSyncState();
         _op = new Packet();
@@ -54,13 +55,13 @@ class OggVorbisDemuxer
 		this._og = null;
 		this._op = null;
 		for ( key in _streams.keys() ) {
-			this._streams.remove(key);
+			this._streams.delete(key);
 		}
 		for ( key in _page_cbs.keys() ) {
-			this._page_cbs.remove(key);
+			this._page_cbs.delete(key);
 		}
 		for ( key in _packet_cbs.keys() ) {
-			this._packet_cbs.remove(key);
+			this._packet_cbs.delete(key);
 		}
 		this._oy.clear();
 	}
@@ -86,7 +87,7 @@ class OggVorbisDemuxer
 	 * @param	serialno
 	 */
     public function remove_page_cb(serialno : Int) : Void {
-        _page_cbs.remove(serialno);
+        _page_cbs.delete(serialno);
     }
 	
 	/**
@@ -96,7 +97,7 @@ class OggVorbisDemuxer
 	{
 		for ( i in this._page_cbs.keys() )
 		{
-			this._page_cbs.remove( i );
+			this._page_cbs.delete( i );
 		}
 	}
 
@@ -121,7 +122,7 @@ class OggVorbisDemuxer
 	 * @param	serialno
 	 */
     public function remove_packet_cb(serialno : Int) : Void {
-        _packet_cbs.remove(serialno);
+        _packet_cbs.delete(serialno);
     }
 	
 	/**
@@ -132,7 +133,7 @@ class OggVorbisDemuxer
 	{
 		for ( i in this._packet_cbs.keys() )
 		{
-			this._packet_cbs.remove( i );
+			this._packet_cbs.delete( i );
 		}
 	}
 	
@@ -348,7 +349,7 @@ class OggVorbisDemuxer
 		if ( os != null )
 		{
 			os.clear();
-            _streams.remove(sn);
+            _streams.delete(sn);
             if (!_streams.iterator().hasNext()) {
                 _bos_done = false;
                  //we're ready for new chained streams

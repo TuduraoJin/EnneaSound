@@ -227,7 +227,7 @@ class OggDecoder extends EventDispatcher
 	public function read( dst:Bytes , inLength:Int ):Bool
 	{
 		var to_read:Int = inLength;
-		if ( this._pcmRb.samples < inLength ) {	to_read = this._pcmRb.samples;	}
+		if ( this._pcmRb.getSamples() < inLength ) {	to_read = this._pcmRb.getSamples();	}
 		
 		if ( 0 < to_read ){
 			return this._pcmRb.readPCM( dst, to_read );	
@@ -537,26 +537,18 @@ class OggDecoder extends EventDispatcher
 	//=============================================//
 	//              getter / setter                //
 	
-	private function getSamples():Int{		return this._pcmRb.samples;	}
-	public var samples(getSamples, null):Int; //samples in buffer.
-	
-	private function get_isHeaderProcessed():Bool {	return _isHeaderProcessed;	}
-	public var isHeaderProcessed(get_isHeaderProcessed, null):Bool;
-	private function get_isDecoding():Bool {	return _isDecoding;	}
-	public var isDecoding(get_isDecoding, null):Bool;
-
-	private function get_isBufferOK():Bool {
-		if ( _pcmRb != null && ( _pcmRb.greenLine <= _pcmRb.bytesAvailable )) { return true;	}
+	public function getSamples():Int{		return this._pcmRb.getSamples();	}
+	public function isHeaderProcessed():Bool {	return _isHeaderProcessed;	}
+	public function isDecoding():Bool {	return _isDecoding;	}
+	public function isBufferOK():Bool {
+		if ( _pcmRb != null && ( _pcmRb.greenLine <= _pcmRb.getBytesAvailable() )) { return true;	}
 		return false;
-	}
-	public var isBufferOK(get_isBufferOK, null):Bool;
-	
-	private function get_isBufferMAX():Bool 
+	}	
+	public function isBufferMAX():Bool 
 	{
-		if ( _pcmRb != null && ( _pcmRb.redLine <= _pcmRb.bytesAvailable )) { return true;	}
+		if ( _pcmRb != null && ( _pcmRb.redLine <= _pcmRb.getBytesAvailable() )) { return true;	}
 		return false;
 	}
-	public var isBufferMAX(get_isBufferMAX, null):Bool;
 	
 	
 	/**

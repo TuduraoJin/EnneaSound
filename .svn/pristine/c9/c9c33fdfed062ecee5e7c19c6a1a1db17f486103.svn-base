@@ -1,0 +1,6 @@
+--no-traces
+-swf-header 10:10:30:ffffff
+-cp ./src 
+-main org.xiph.frontend.SoundFactory 
+-swf-version 10.1 
+-swf ./bin/EnneaSound.swf

@@ -109,7 +109,7 @@ class RingBuffer extends EventDispatcher
 		var over_len:UInt = 0;
 		
 		//Check if the overflow size to write.
-		if ( this._length - this._buffAvailable < Std.int(write_len) )
+		if ( this._length - this._buffAvailable < write_len )
 		{
 			//Extract size overflow
 			write_len = (this._length - this._buffAvailable);
@@ -161,7 +161,7 @@ class RingBuffer extends EventDispatcher
 	 */
     public function read(dst : Bytes, inLen : UInt) : Bool 
 	{
-		if ( this.bytesAvailable < inLen ) {	return false;	}
+		if ( this.getBytesAvailable() < inLen ) {	return false;	}
 		var read_len:UInt = inLen;
 		var over_len:UInt = 0;
 		//Check read the overflow
@@ -225,7 +225,7 @@ class RingBuffer extends EventDispatcher
 		var write_len:UInt = this._overflowBuff.length;
 		
 		//オーバーフローのデータより大きいなら書き込める分を取り出す。if greater than the data in the overflow.
-		if ( this._length - this._buffAvailable <  Std.int(write_len) )
+		if ( this._length - this._buffAvailable <  write_len )
 		{
 			write_len = this._length - this._buffAvailable;
 		}
@@ -308,11 +308,10 @@ class RingBuffer extends EventDispatcher
 	//=============================================//
 	//             Getter / Setter                 //
 	
-	private function get_bytesAvailable():UInt {		return _buffAvailable + _overflowBuff.length;	}
-	public var bytesAvailable(get_bytesAvailable, null):UInt;
-	private function get_position():UInt {	return _position;	}
-	public var position(get_position, null):UInt;
+	public function getBytesAvailable():UInt {		return _buffAvailable + _overflowBuff.length;	}
+	public function getPosition():UInt {	return _position;	}
 	
+	public var length(get, set):UInt;	
 	private function get_length():UInt {	return _length;	}
 	private function set_length(value:UInt):UInt 
 	{
@@ -390,10 +389,10 @@ class RingBuffer extends EventDispatcher
 		
 		return _length;
 	}
-	public var length(get_length, set_length):UInt;	
-	
-	private function get_GreenLine():UInt {	return _GreenLine;	}
-	private function set_GreenLine(value:UInt):UInt 
+
+	public var greenLine(get,set):UInt;
+	private function get_greenLine():UInt {	return _GreenLine;	}
+	private function set_greenLine(value:UInt):UInt 
 	{
 		if ( this.length < value ) {	value = this.length; }
 		var oldLen:UInt = this._GreenLine;
@@ -421,10 +420,9 @@ class RingBuffer extends EventDispatcher
 		return _GreenLine;
 	}
 	
-	public var greenLine(get_GreenLine, set_GreenLine):UInt;
-	
-	private function get_RedLine():UInt {		return _RedLine;	}
-	private function set_RedLine(value:UInt):UInt 
+	public var redLine(get,set):UInt;
+	private function get_redLine():UInt {		return _RedLine;	}
+	private function set_redLine(value:UInt):UInt 
 	{
 		if ( this.length < value ) {	value = this.length; }
 		var oldLen:UInt = this._RedLine;
@@ -452,7 +450,6 @@ class RingBuffer extends EventDispatcher
 		return _RedLine;
 	}
 	
-	public var redLine(get_RedLine, set_RedLine):UInt;
 	
 	//             Getter / Setter                 //
 	//=============================================//

@@ -80,12 +80,12 @@ class OggID3 extends BaseID3Info
 			if ( array.length < 2 )	{		value = array[0];		}
 			else {	value = array[1];		}
 			
-			switch(tag)
+			switch(tag.toUpperCase())
 			{//switch
-				case "TITLE":		this.songName = value;
-				case "VERSION":		this.version = value;
-				case "ALBUM":		this.album = value;
-				case "TRACKNUMBER":	this.track = value;
+				case "TITLE":					this.songName = value;
+				case "VERSION":					this.version = value;
+				case "ALBUM":					this.album = value;
+				case "TRACKNUMBER":				this.track = value;
 				case "ARTIST":		this.artist = value;
 				case "PERFORMER":	this.performer = value;
 				case "COPYRIGHT":	this.copyright = value;
