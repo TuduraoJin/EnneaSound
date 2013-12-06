@@ -51,7 +51,7 @@ class PCMRingBuffer extends RingBuffer
     {
 		var write_samples:Int = inSamples;
 		var over_samples:Int = 0;
-		if ( (write_samples * inSampleMultiplier) * 8 > this._length - this._buffAvailable ) {
+		if ( (write_samples * inSampleMultiplier) * 8 > cast((this._length - this._buffAvailable),Int) ) {
 			write_samples = Std.int( (( this._length - this._buffAvailable ) / inSampleMultiplier) / 8 );
 			over_samples = inSamples - write_samples;
 		}
@@ -165,8 +165,8 @@ class PCMRingBuffer extends RingBuffer
 	//=============================================//
 	//             Getter / Setter                 //
 	
-	private function get_sample():Int{		return Std.int(this.bytesAvailable / 8);	}
-	public var samples(get_sample, null):Int; //Is the number of samples, not in bytes.
+	//Is the number of samples, not in bytes.
+	public function getSamples():Int{		return Std.int(this.getBytesAvailable() / 8);	}
 	
 	//             Getter / Setter                 //
 	//=============================================//

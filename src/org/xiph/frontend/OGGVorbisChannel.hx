@@ -12,11 +12,15 @@ import org.xiph.system.OggDecoderEvent;
 import org.xiph.system.OggUtil;
 
 /**
- * OggDecoderを使用するChannelクラス...
- * Oggの再生を制御するクラス。
+ * OggDecoderを使用してOggVorbisの再生を制御するChannelクラス...
  * Sound.SAMPLE_DATA_EVENTを用いて、リアルタイムにデコードしたOggデータを再生する。
  * 
- * 処理の流れ。
+ * The "OGGVorbisChannel" class implements OGG Vorbis playback support, through
+ * the use of Flash 10's enhanced Sound API. More specifically, the
+ * ability to dynamically write audio data, needed for the Vorbis
+ * decoder to communicate with.
+ * 
+ * 処理の流れ。 process.
  * OGGクラスから渡された音楽のバイナリをデコーダーに渡す。
  * デコーダがロードし終わったら、ヘッダー処理を行う。
  * ヘッダー処理完了後、オフセットの位置にシークを行う。
@@ -36,15 +40,15 @@ class OGGVorbisChannel extends BaseSoundChannel
 	private var _bufferTime:Int;
 	private var _loopCount:Int = 0;
 	private var _playLength:Float = 0;
-	public var samples_chunksize(default, default):Int = 8192;
+	public var samples_chunksize:Int = 8192;
 	public var seekQuality:Bool = false; //false = page seek. true = seek.
 	
 	/**
 	 * Constructor
 	 * @param	data sound binary data. 音のバイナリデータ。
 	 * @param	offset 再生開始位置。ループ再生の場合、毎回オフセットの位置から再生される。
-	 * @param	volume 音量。 0(min) - 1.0(max)
-	 * @param	pan パン。 -1(left) - 0(center) - 1(right)
+	 * @param	volume 音量。 Number of Volume.  between 0 and 1.　 0(min), 1.0(max)
+	 * @param	pan Number of Pan.  between -1 and +1. value is  -1 = Left ,  0 = Center,  1 = Right.
 	 * @param	loop Loop count. 0 or 1 = once. If more, The number of times to play.ループ回数。0,1なら1回再生。それ以上の場合、数字の回数分再生する。
 	 * @param	bufferTime used to buffer the size of the decoder.　デコーダーのバッファサイズに用いる。
 	 */
@@ -54,7 +58,7 @@ class OGGVorbisChannel extends BaseSoundChannel
 		this._bufferTime = bufferTime;
 		_dec = new OggDecoder( _bufferTime );
 		var ret:Bool = false;
-		ret = _dec.load( data , false );
+		ret = _dec.load( data );
 		//trace("[OGGVorbisChannel] <new> load() ret=" + Std.string(ret));
 		//set EventListener.  //check: not useWeekReference
 		this._dec.addEventListener(OggDecoderEvent.HEADER_PROCESS_COMPLETE, decHeaderCompleteHandler );
@@ -91,7 +95,7 @@ class OGGVorbisChannel extends BaseSoundChannel
 			_sch.removeEventListener(Event.SOUND_COMPLETE, chSoundCompleteHandler);
 			_sch = null;
 		}
-		this.isPlayed = false;
+		this._isPlayed = false;
 		this._loopCount = 0;
 	}
 	
@@ -154,10 +158,10 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
 	private function decSeekCompleteHandler(e:OggDecoderEvent):Void 
 	{
-		trace("[OGGVorbisChannel] <decSeekCompleteHandler> isPlayed=" + Std.string(this.isPlayed) );
-		if ( this.isPlayed )
+		trace("[OGGVorbisChannel] <decSeekCompleteHandler> isPlayed=" + Std.string(this._isPlayed) );
+		if ( this._isPlayed )
 		{
-			if ( (this._dec.isBufferOK || this._dec.isBufferMAX) && _loopCount == 0 ){
+			if ( (this._dec.isBufferOK() || this._dec.isBufferMAX() ) && _loopCount == 0 ){
 				this.playSound();		//play sound
 			}else{
 				this._dec.processStart(); //decode start
@@ -181,7 +185,7 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 */
 	private function playSound():Void
 	{
-		if (_sch == null && isPlayed ) {
+		if (_sch == null && _isPlayed ) {
             _sch = _s.play( 0 , 0 , this._st );
 			if ( this._sch != null )
 			{
@@ -228,10 +232,10 @@ class OGGVorbisChannel extends BaseSoundChannel
 	public override function play( inOffset:Float = -1 , inVol:Float = -1 , inPan:Float = -2 ,inLoop:Int = -1 ):Void
 	{
 		super.play( inOffset, inVol, inPan, inLoop);
-		if ( isPlayed ){	this.stop();	}
-		this.isPlayed = true;
+		if ( _isPlayed ){	this.stop();	}
+		this._isPlayed = true;
 		
-		if ( this._dec.isHeaderProcessed ){
+		if ( this._dec.isHeaderProcessed() ){
 			this.seek_time(_offset);
 		}else {
 			this._dec.processHeader();
@@ -251,7 +255,7 @@ class OGGVorbisChannel extends BaseSoundChannel
 			_sch.stop();
 			this._sch = null;
 		}
-		this.isPlayed = false;
+		this._isPlayed = false;
 		this._loopCount = 0;
 		this._dec.processStop();
 		this._dec.clearBuffer();
@@ -281,7 +285,6 @@ class OGGVorbisChannel extends BaseSoundChannel
 	{
 		if ( _sch == null )	{	return this._st.volume;		}
 		else{	return this._sch.soundTransform.volume;		}
-		//return 0;
     }
     
 	/**
@@ -292,7 +295,6 @@ class OGGVorbisChannel extends BaseSoundChannel
 	{
 		if ( _sch == null )	{	return this._st.pan;		}
 		else{	return this._sch.soundTransform.pan;		}
-        //return 0;
     }
     
 	/**
