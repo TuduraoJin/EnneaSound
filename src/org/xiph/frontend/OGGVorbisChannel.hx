@@ -47,8 +47,8 @@ class OGGVorbisChannel extends BaseSoundChannel
 	 * Constructor
 	 * @param	data sound binary data. 音のバイナリデータ。
 	 * @param	offset 再生開始位置。ループ再生の場合、毎回オフセットの位置から再生される。
-	 * @param	volume 音量。 0(min) - 1.0(max)
-	 * @param	pan パン。 -1(left) - 0(center) - 1(right)
+	 * @param	volume 音量。 Number of Volume.  between 0 and 1.　 0(min), 1.0(max)
+	 * @param	pan Number of Pan.  between -1 and +1. value is  -1 = Left ,  0 = Center,  1 = Right.
 	 * @param	loop Loop count. 0 or 1 = once. If more, The number of times to play.ループ回数。0,1なら1回再生。それ以上の場合、数字の回数分再生する。
 	 * @param	bufferTime used to buffer the size of the decoder.　デコーダーのバッファサイズに用いる。
 	 */
@@ -58,7 +58,7 @@ class OGGVorbisChannel extends BaseSoundChannel
 		this._bufferTime = bufferTime;
 		_dec = new OggDecoder( _bufferTime );
 		var ret:Bool = false;
-		ret = _dec.load( data , false );
+		ret = _dec.load( data );
 		//trace("[OGGVorbisChannel] <new> load() ret=" + Std.string(ret));
 		//set EventListener.  //check: not useWeekReference
 		this._dec.addEventListener(OggDecoderEvent.HEADER_PROCESS_COMPLETE, decHeaderCompleteHandler );

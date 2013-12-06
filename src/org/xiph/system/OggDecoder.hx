@@ -73,18 +73,14 @@ class OggDecoder extends EventDispatcher
 	/**
 	 * load data.
 	 * @param	inData sound binary.
-	 * @param	isCopy If true , replicate data locally in Demuxer.
 	 * @return true = success , false = failed.
 	 */
-	public function load( inData:Bytes , isCopy:Bool = true ):Bool
+	public function load( inData:Bytes ):Bool
 	{
 		var ret:Int = 0;
 		inData.position = 0;
-		if ( isCopy ) {
-			ret = this._dmx.read( inData , inData.bytesAvailable );
-		}else {
-			ret = this._dmx.readNoCopy( inData , inData.bytesAvailable );
-		}
+		ret = this._dmx.readNoCopy( inData , inData.bytesAvailable );
+		
 		//trace("[OggDecoder] <load> OggDemuxer.read() ret=" + Std.string(ret));
 		if ( 0 < ret )
 		{

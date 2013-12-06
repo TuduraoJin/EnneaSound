@@ -81,6 +81,7 @@ If you want to import and use the SWC to AS3, you need to initialize the Haxe sy
 Please write the code to the following first.
 
 example:
+
 	var mc:MovieClip = new MovieClip();
 	stage.addChild(mc);
 	haxe.initSwc(mc);
@@ -94,6 +95,7 @@ Oggを使用する場合、最初にstaticなデータを初期化する必要�
 If you want to use Ogg, you need to initialize the static data first. Please use the method of initOgg SoundFactory class.
 
 example:
+
 	SoundFactory.initOgg();
 
 
@@ -123,10 +125,14 @@ example:
 ## 使用するときの考慮するべき点
 ### オフセットとループを同時に指定した場合、指定したオフセットから末尾までの間をループ再生します。
 例えば、以下の様なコードを書いたとします。
+
 	OggVorbisChannel.play(1.0, 1, 1 , 2);  //offset = 1.0 , sec vol = 1.0 , pan =1.0 , loop = 2;
+
 この場合、先頭から1秒経過した地点から末尾までを2回繰り返します。2周目で先頭から再生されない点に注意してください。
-	begin -- 1sec ---------- end
-                 play ------->      1loop
-                 play ------->      2loop
+
+begin -- 1sec ---------- end
+    play 1sec -------> end     1loop
+    play 1sec -------> end     2loop
+                 and more loop...
 
 ### OggVorbisファイルのストリーミング再生はできません。Oggクラスで一旦ファイルをすべて読み込んでから再生しています。
