@@ -6,11 +6,6 @@
   誰かやってくれないかな…。
 
 # 変更履歴 Changes
----version 1.2.3.1
--MP3Channel , WAVChannel
-bugfix.
-一度停止されたチャンネルが再度再生された場合に、isPlayedフラグが変更されなかった不具合を修正。
-
 ---version 1.2.3
 bugfix.
 -BaseSound, MP3, OGG, WAV, BinaryOGG, BinaryWAV
