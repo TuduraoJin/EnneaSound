@@ -1,0 +1,545 @@
+package org.xiph.foggy;
+
+import flash.errors.Error;
+import flash.utils.IDataInput;
+import org.xiph.fogg.Packet;
+import org.xiph.fogg.Page;
+import org.xiph.fogg.SeekableSyncState;
+import org.xiph.fogg.StreamState;
+import org.xiph.system.Bytes;
+import flash.utils.TypedDictionary;
+
+/**
+ * Demuxer with a seek function. シーク機能を持つDemuxer...
+ * @author tudurao jin
+ */
+
+enum OggVorbisDemuxerStatus {
+    OK;
+    STOP;
+	EOF;
+	ERROR;
+}
+
+
+class OggVorbisDemuxer 
+{
+    private var _oy : SeekableSyncState;
+    private var _og : Page;
+    private var _op : Packet;
+    private var _bos_done : Bool;
+    private var _streams : TypedDictionary<Int,StreamState>;
+    private var _page_cbs : TypedDictionary<Int,Page -> Int -> OggVorbisDemuxerStatus>;
+    private var _packet_cbs : TypedDictionary<Int,Packet -> Int -> OggVorbisDemuxerStatus>;
+
+	/**
+	 * Constructor
+	 */
+	public function new() 
+	{
+        _page_cbs = new TypedDictionary();
+        _packet_cbs = new TypedDictionary();
+        _streams = new TypedDictionary();
+        _bos_done = false;
+        _oy = new SeekableSyncState();
+        _op = new Packet();
+        _oy.init();
+	}
+	
+	/**
+	 * dispose. 
+	 * check: Please call if you want to delete an instance of this class. このクラスのインスタンスを削除する場合に呼んでください。
+	 */
+	public function dispose():Void
+	{
+		this._og = null;
+		this._op = null;
+		for ( key in _streams.keys() ) {
+			this._streams.delete(key);
+		}
+		for ( key in _page_cbs.keys() ) {
+			this._page_cbs.delete(key);
+		}
+		for ( key in _packet_cbs.keys() ) {
+			this._packet_cbs.delete(key);
+		}
+		this._oy.clear();
+	}
+		
+	/**
+	 * set page callback.
+	 * @param	serialno If you do not know the serial number, then a value of -1.
+	 * @param	cb
+	 */
+	public function set_page_cb(serialno : Int, cb : Page -> Int -> OggVorbisDemuxerStatus) : Void {
+        if (serialno != -1 && !_streams.exists(serialno)) {
+			trace("[OggVorbisDemuxer] <set_page_cb> not found page callback target serialno." + Std.string( serialno ));
+			var e:OggDemuxerError = new OggDemuxerError("[OggVorbisDemuxer] <set_page_cb> not found page callback target serialno. no = " + Std.string(serialno) , -1 );
+			e.serialno = serialno;
+			throw e;
+        } else {
+            _page_cbs.set(serialno, cb);
+        }
+    }
+	
+	/**
+	 * remove page callback.
+	 * @param	serialno
+	 */
+    public function remove_page_cb(serialno : Int) : Void {
+        _page_cbs.delete(serialno);
+    }
+	
+	/**
+	 * remove All page callback.
+	 */
+	public function remove_page_cb_All():Void
+	{
+		for ( i in this._page_cbs.keys() )
+		{
+			this._page_cbs.delete( i );
+		}
+	}
+
+	/**
+	 * set packet callback.
+	 * @param	serialno If you do not know the serial number, then a value of -1.
+	 * @param	cb
+	 */
+    public function set_packet_cb(serialno : Int, cb : Packet -> Int -> OggVorbisDemuxerStatus) : Void {
+        if (serialno != -1 && !_streams.exists(serialno)) {
+			trace("[OggVorbisDemuxer] <set_packet_cb> not found packet callback target serialno." + Std.string( serialno ));
+			var e:OggDemuxerError = new OggDemuxerError("[OggVorbisDemuxer] <set_packet_cb> not found packet callback target serialno. no = " + Std.string(serialno) , -1 );
+			e.serialno = serialno;
+			throw e;
+        } else {
+            _packet_cbs.set(serialno, cb);
+        }
+    }
+	
+	/**
+	 * remove packet callback.
+	 * @param	serialno
+	 */
+    public function remove_packet_cb(serialno : Int) : Void {
+        _packet_cbs.delete(serialno);
+    }
+	
+	/**
+	 * remove All packet callback.
+	 * @param	serialno
+	 */
+    public function remove_packet_cb_All():Void
+	{
+		for ( i in this._packet_cbs.keys() )
+		{
+			this._packet_cbs.delete( i );
+		}
+	}
+	
+	/**
+	 * read the byte data targeting. replicate data locally.
+	 * @param	data
+	 * @param	len
+	 * @return The length of the data read.
+	 */
+	public function read(data : IDataInput, len : Int ) : Int {
+        var buffer : Bytes;
+        var index : Int = _oy.buffer(len);
+        buffer = _oy.data;
+
+		try {
+			if ( len > cast(data.bytesAvailable, Int) )
+			{
+				len = cast(data.bytesAvailable, Int);
+			}
+			data.readBytes(buffer, index, len);
+		}catch (e:Error) {
+			trace("[OggVorbisDemuxer] <read> data read error. " + e.getStackTrace() );
+		}
+        _oy.wrote(len);
+
+        return len;
+    }
+	
+	/**
+	 * read the byte data targeting. does not replicate data locally.
+	 * @param	data
+	 * @param	len
+	 * @return The length of the data read.
+	 */
+	public function readNoCopy(data : IDataInput, len : Int ) : Int {
+        var index : Int = _oy.buffer(len);
+		_oy.data = cast(data,Bytes);
+        _oy.wrote(len);
+        return len;
+    }
+	
+	/**
+	 * process the page callback.
+	 * @param	p
+	 * @return OggVorbisDemuxerStatus the callback returns.
+	 * @throws OggDemuxerError, If the callback returns Error.
+	 */
+    private function processPage(p : Page) : OggVorbisDemuxerStatus {
+		var sn:Int = p.serialno();
+        var cbret : OggVorbisDemuxerStatus = OggVorbisDemuxerStatus.OK;
+        var cb : Page -> Int -> OggVorbisDemuxerStatus;
+
+        cb = _page_cbs.get( sn );
+        if (cb == null) {
+            cb = _page_cbs.get( -1);
+			sn = -1;
+        }
+
+        if (cb != null) {
+            cbret = cb( p , sn );
+            if ( cbret == OggVorbisDemuxerStatus.ERROR )
+			{
+				var e:OggDemuxerError = new OggDemuxerError("<processPage> callback return error. serialno=" + Std.string(p.serialno()) , -1 );
+				e.serialno = p.serialno();
+				throw e;
+			}
+        }
+
+        return cbret;
+    }
+
+		/**
+	 * process the packet callback.
+	 * @param	p
+	 * @param	sn serial number of page.
+	 * @return OggVorbisDemuxerStatus the callback returns.
+	 * @throws OggDemuxerError, If the callback returns Error.
+	 */
+    private function processPacket(p : Packet, sn : Int) : OggVorbisDemuxerStatus {
+        var cbret : OggVorbisDemuxerStatus = OggVorbisDemuxerStatus.OK;
+        var cb : Packet -> Int -> OggVorbisDemuxerStatus;
+
+        cb = _packet_cbs.get(sn);
+        if (cb == null) {
+            cb = _packet_cbs.get( -1 );
+			sn = -1;
+        }
+
+        if (cb != null) {
+            cbret = cb(p, sn);
+			if ( cbret == OggVorbisDemuxerStatus.ERROR )
+			{
+				var e:OggDemuxerError = new OggDemuxerError("<processPacket> callback return error. serialno=" + Std.string(sn) , -1 );
+				e.serialno = sn;
+				throw e;
+			}
+        }
+
+        return cbret;
+    }
+	
+	/**
+	 * process  packet in 1 page. 
+	 * If STOP is returned from the callback, then I can not proceed.
+	 * I will resume in the middle of the packet processing run next time.
+	 * @return OggVorbisDemuxerStatus  [OK] = process is completed, [STOP] = the file is interrupted. [EOF] = it reaches the end. [ERROR] = If any Error occurs.
+	 */
+	public function process():OggVorbisDemuxerStatus
+	{
+        if ( this._oy.data == null) {	throw new OggDemuxerError("not found data in StreamState.");	}
+		
+		var ret : Int = 0;
+		var os:StreamState;
+		var page_cb_ret:OggVorbisDemuxerStatus;
+		
+		if ( this._og == null )
+		{ //page out
+			this._og = new Page();
+			
+			ret = _oy.pageout( this._og );
+			if ( 0 < ret )
+			{
+				os = getStream( this._og.serialno() );
+				ret = os.pagein( this._og ) ;
+				if (ret < 0) {
+					trace("[OggVorbisDemuxer] <processEx> pagein error.");
+					return OggVorbisDemuxerStatus.ERROR;
+				}
+				page_cb_ret = this.processPage( this._og );
+				if ( page_cb_ret == OggVorbisDemuxerStatus.STOP || page_cb_ret == OggVorbisDemuxerStatus.ERROR )
+				{
+					return page_cb_ret;
+				}
+			}
+			else
+			{
+				//error page out
+				//trace("[OggVorbisDemuxer] <processEx> pageout error. ");
+				return OggVorbisDemuxerStatus.EOF;
+			}
+		} //page out
+		
+		//get StreamState. ストリームを取り出す。
+		os = getStream( this._og.serialno() );
+
+		var packet_cb_ret:OggVorbisDemuxerStatus;
+		
+		while (true) 
+		{// process packet
+			ret = os.packetout(_op);
+			
+			if ( 0 < ret ) 
+			{// packetout
+				packet_cb_ret = this.processPacket(_op, this._og.serialno() );
+				switch( packet_cb_ret )
+				{
+					case OggVorbisDemuxerStatus.STOP:			return OggVorbisDemuxerStatus.STOP;
+					case OggVorbisDemuxerStatus.ERROR:			return OggVorbisDemuxerStatus.ERROR;
+					default:	//next packet
+				}
+			}// packetout
+			else
+			{// packetout failed
+				if( this._og.eos() != 0 )
+				{ //end page
+					trace("[OggVorbisDemuxer] <processEx> end page. ");
+					os.reset();
+					this._og = null;
+					return OggVorbisDemuxerStatus.EOF;
+				} //end page
+				this._og = null;
+				break;
+			}// packetout faild
+		};// process packet
+		
+		return OggVorbisDemuxerStatus.OK;
+	}
+	
+	/**
+	 * get StreamState in Hash
+	 * @param	sn
+	 * @return StreamState. null = not found.
+	 */
+	private function getStream( sn:Int ):StreamState
+	{
+		var os : StreamState = _streams.get(sn);
+		if (os == null) {
+			if (_bos_done) {
+				// unexpected new stream
+				return null;
+			}
+			os = new StreamState();
+			os.init(sn);
+			_streams.set(sn, os);
+			_bos_done = true;
+		} else {
+			// end of bos pages? handle!...
+			if (!_bos_done) {
+				_bos_done = true;
+			}
+		}
+		
+		return os;
+	}
+	
+	/**
+	 * remove StreamState in Hash.
+	 * @param	sn
+	 */
+	private function removeStream( sn:Int ):Void
+	{
+		var os:StreamState = getStream( sn );
+		if ( os != null )
+		{
+			os.clear();
+            _streams.delete(sn);
+            if (!_streams.iterator().hasNext()) {
+                _bos_done = false;
+                 //we're ready for new chained streams
+            }
+        }
+	}
+	
+	/**
+	 * reset the StreamState of the current page.
+	 * @param	sn
+	 */
+	private function resetStream():Void
+	{
+		if ( this._og != null )
+		{
+			var os:StreamState = this.getStream( this._og.serialno() );
+			os.reset();
+		}
+		this._og = null;
+	}
+	
+	//=============================================//
+	//             SyncState methods              //
+	
+	/**
+	 * 	move to head.
+	 */
+	public function pageseek_head():Void
+	{
+		this._oy.pageseek_head();
+		this.resetStream();
+	}
+	
+	/**
+	 * 	move to tail.(to fill)
+	 */
+	public function pageseek_tail():Void
+	{
+		this._oy.pageseek_tail();
+		this.resetStream();
+	}
+	
+	/**
+	 * seek to body page top. ボディの先頭ページに移動する。
+	 * @return Position moved. 1 = success. 0 = no move. -1 = failed.
+	 */
+	public function pageseek_body_top():Int
+	{
+		var ret:Int = this._oy.pageseek_body_top();
+		if ( 0 < ret ) {	this.resetStream();		}
+		return ret;
+	}
+	
+	/**
+	 * seek to body page end. 末尾ページに移動
+	 * @return Value greater than 0 = success. 
+	 */
+	public function pageseek_body_end():Int
+	{
+		var ret:Int = this._oy.pageseek_body_end();
+		if ( 0 < ret ) {	this.resetStream();		}
+		return ret;
+	}
+	
+	/**
+	 * page out body top page. 先頭ボディページを得る。
+	 * @param	og
+	 * @return Value greater than 0 = success. -1 = failed.
+	 */
+	public function pageout_body_top( og:Page ):Int
+	{
+		var ret:Int = this.pageseek_body_top();
+		if ( 0 < ret ) {	return this._oy.pageout( og );	}
+		else {	return ret;	}
+	}
+	
+	/**
+	 * page out body end page. 
+	 * @param	og
+	 * @return Value greater than 0 = success. -1 = failed.
+	 */
+	public function pageout_body_end( og:Page ):Int
+	{
+		var ret:Int = this.pageseek_body_end();
+		if ( 0 < ret ) {	return this._oy.pageout( og );	}
+		else {	return ret;	}
+	}
+	
+	/**
+	 * page seek go prev page. 後ろ向きにシークする。現在位置のページを取り出した後に移動する。
+	 * check: If, when outputting the first page, the return value is 0. もし、先頭ページを取り出し、データの先頭まで移動した場合、0を返す。
+	 * @return position moved. Value Greater than 0 = success output pagedata. 0 = no moved. didn't output pagedata. Value less than 0 = failed, didn't output pagedata
+	 */
+	public function pageseek_back():Int
+	{
+		var ret:Int = this._oy.pageseek_back( this._og );
+		if ( 0 < ret ) {	this.resetStream();		}
+		return ret;
+	}
+	
+	/**
+	 * pageout and back seek.
+	 * @param	og　Parameters for data storage.
+	 * @return 1 = success output pagedata. 0 = no moved. didn't output pagedata. -1 = failed, didn't output pagedata
+	 */
+	public function pageout_back( og:Page ):Int
+	{
+		var ret:Int = this._oy.pageout_back( og );
+		if ( 0 < ret ) {	this.resetStream();		}
+		return ret;
+	}
+	
+	/**
+	 * page seek go next page. 次のページへシークする。現在位置のページを取り出した後に移動する。
+	 * @return position moved. Value Greater than 0 = success output pagedata. 0 = no moved. didn't output pagedata. Value less than 0 = failed, didn't output pagedata
+	 */
+	public function pageseek_next():Int
+	{
+		var ret:Int = this._oy.pageout( this._og );
+		if ( 0 < ret ) {	this.resetStream();		}
+		return ret;
+	}
+	
+	/**
+	 * pageout and seek.
+	 * @param	og　Parameters for data storage.
+	 * @return 1 = success output pagedata. 0 = no moved. didn't output pagedata. -1 = failed, didn't output pagedata
+	 */
+	public function pageout_next( og:Page ):Int
+	{
+		var ret:Int = this._oy.pageout( og );
+		if ( 0 < ret ) {	this.resetStream();		}
+		return ret;
+	}
+	
+	/**
+	 * Seek to any page. 任意のページに移動する。
+	 * @param	t_PageNo target Page Number.
+	 * @return 1 = success. -1 = failed.
+	 */
+	public function pageseek_targetPage( t_PageNo:Int ):Int
+	{
+		var ret:Int = this._oy.pageseek_targetPage( t_PageNo );
+		if ( 0 < ret ) {	this.resetStream();		}
+		return ret;
+	}
+	
+	/**
+	 * page out targetPage.
+	 * @param	og
+	 * @param	t_PageNo
+	 * @return 1 = success. -1 = failed.
+	 */
+	public function pageout_targetPage( og:Page , t_PageNo:Int ):Int
+	{
+		var ret:Int = this.pageseek_targetPage( t_PageNo );
+		if ( 0 < ret ) {	return this._oy.pageout( og );	}
+		else {	return ret;	}
+	}
+	
+	/**
+	 * seek to granulposition page of the specified. 指定のgranul positionのページへシークする。
+	 * @param	t_gpos
+	 * @return 1 = success. 0 = no moved. -1 = failed.
+	 */
+	public function pageseek_targetGpos( t_gpos:Int ):Int
+	{
+		var ret:Int = this._oy.pageseek_targetGpos( t_gpos );
+		if ( 0 < ret ) 
+		{
+			this.resetStream();
+		}
+		return ret;
+	}
+
+
+	/**
+	 * page out granulposition page of the specified. 指定のgranul positionのページを取得する。
+	 * @param	og
+	 * @param	t_gpos
+	 * @return 1 = success. -1 = failed.
+	 */
+	public function pageout_targetGpos( og:Page , t_gpos:Int ):Int
+	{
+		var ret:Int = this.pageseek_targetGpos( t_gpos );
+		if ( 0 < ret ) {	return this._oy.pageout( og );	}
+		else {	return ret;	}
+	}
+	
+	//             SyncState methods              //
+	//=============================================//
+	
+}

@@ -189,7 +189,7 @@ class OGGVorbisChannel extends BaseSoundChannel
             _sch = _s.play( 0 , 0 , this._st );
 			if ( this._sch != null )
 			{
-				_sch.addEventListener(Event.SOUND_COMPLETE, chSoundCompleteHandler);
+				_sch.addEventListener(Event.SOUND_COMPLETE, chSoundCompleteHandler,false, 0, true);
 			}else {
 				//channel max. can't create SoundChannel.
 				this.stop();

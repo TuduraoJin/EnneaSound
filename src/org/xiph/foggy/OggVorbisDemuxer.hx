@@ -33,7 +33,7 @@ class OggVorbisDemuxer
     private var _packet_cbs : TypedDictionary<Int,Packet -> Int -> OggVorbisDemuxerStatus>;
 
 	/**
-	 * Cunstructor
+	 * Constructor
 	 */
 	public function new() 
 	{

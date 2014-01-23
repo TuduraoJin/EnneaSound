@@ -15,7 +15,7 @@ class WAVChannel extends BaseSoundChannel
 		this._offset = offset;
 		this.loop = loop;
         this._sch = sound.play(offset, cast(loop,UInt), this._st );
-        this._sch.addEventListener(Event.SOUND_COMPLETE, channelComplete,false, 0, true);
+        this._sch.addEventListener(Event.SOUND_COMPLETE, channelComplete);
 		this._s = sound;
 		this._isPlayed = true;
     }
@@ -43,7 +43,7 @@ class WAVChannel extends BaseSoundChannel
         this._sch = _s.play( this._offset, cast(this.loop, UInt), this._st );
 		if ( this._sch != null )
         {
-			this._sch.addEventListener(Event.SOUND_COMPLETE, channelComplete,false, 0, true);
+			this._sch.addEventListener(Event.SOUND_COMPLETE, channelComplete);
 			this._isPlayed = true;
 		}
 	}

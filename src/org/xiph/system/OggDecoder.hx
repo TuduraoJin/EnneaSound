@@ -381,9 +381,9 @@ class OggDecoder extends EventDispatcher
 					cast(buf_len * BUFFER_COFF_LENGTH , UInt), 
 					cast(buf_len * BUFFER_COFF_GREENLINE , UInt),
 					cast(buf_len * BUFFER_COFF_REDLINE , UInt) );
-				_pcmRb.addEventListener( RingBufferEvent.OVER_GREENLINE , overGLine );
-				_pcmRb.addEventListener( RingBufferEvent.OVER_REDLINE , overRLine );
-				_pcmRb.addEventListener( RingBufferEvent.UNDER_REDLINE , underRLine );
+				_pcmRb.addEventListener( RingBufferEvent.OVER_GREENLINE , overGLine ,false, 0, true);
+				_pcmRb.addEventListener( RingBufferEvent.OVER_REDLINE , overRLine ,false, 0, true);
+				_pcmRb.addEventListener( RingBufferEvent.UNDER_REDLINE , underRLine ,false, 0, true);
 				
 				this._need_samples = true; //decode flag.
 				

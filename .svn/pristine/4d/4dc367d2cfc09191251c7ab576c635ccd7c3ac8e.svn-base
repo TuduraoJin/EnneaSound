@@ -3,24 +3,28 @@ package org.xiph.frontend;
 import flash.events.Event;
 import flash.media.SoundTransform;
 
-class WAVChannel extends BaseSoundChannel 
+/**
+ * @author tudurao jin
+ */
+
+class MP3Channel extends BaseSoundChannel 
 {
-    private var _sch : flash.media.SoundChannel;
-	private var _s:ru.etcs.media.WaveSound;
-    
-    public function new(sound : ru.etcs.media.WaveSound, offset:Float, volume:Float, pan:Float , loop:Int = 0) 
+    private var _sch:flash.media.SoundChannel;
+    private var _s:flash.media.Sound;
+	
+    public function new(sound : flash.media.Sound, offset:Float, volume:Float, pan:Float , loop:Int = 0) 
 	{
         super();
 		this._st = new SoundTransform(volume, pan);
 		this._offset = offset;
 		this.loop = loop;
-        this._sch = sound.play(offset, cast(loop,UInt), this._st );
-        this._sch.addEventListener(Event.SOUND_COMPLETE, channelComplete,false, 0, true);
+        this._sch = sound.play(offset, loop, this._st );
+        this._sch.addEventListener(Event.SOUND_COMPLETE, channelComplete);
 		this._s = sound;
 		this._isPlayed = true;
     }
 	
-	public override function dispose():Void
+	public override function dispose():Void 
 	{
 		super.dispose();
 		if ( _sch != null )
@@ -30,7 +34,6 @@ class WAVChannel extends BaseSoundChannel
 		this._sch = null;
 		this._s = null;
 		this._isPlayed = false;
-
 	}
 	
 	public override function play( inOffset:Float = -1 , inVol:Float = -1 , inPan:Float = -2 ,inLoop:Int = -1 ):Void
@@ -40,10 +43,10 @@ class WAVChannel extends BaseSoundChannel
 		{
 			this.stop();
 		}
-        this._sch = _s.play( this._offset, cast(this.loop, UInt), this._st );
+        this._sch = _s.play( this._offset, this.loop, this._st );
 		if ( this._sch != null )
         {
-			this._sch.addEventListener(Event.SOUND_COMPLETE, channelComplete,false, 0, true);
+			this._sch.addEventListener(Event.SOUND_COMPLETE, channelComplete);
 			this._isPlayed = true;
 		}
 	}
@@ -71,7 +74,7 @@ class WAVChannel extends BaseSoundChannel
     
     public override function getPan() : Float 
 	{
-        if ( _sch == null ) {	return this._st.pan;		}
+		if ( _sch == null ) {	return this._st.pan;		}
 		else {		return this._sch.soundTransform.pan;		}
     }
     
@@ -96,12 +99,12 @@ class WAVChannel extends BaseSoundChannel
 			var t : SoundTransform = this._sch.soundTransform;
 			t.pan = pan;
 			this._sch.soundTransform = t;
-		}      
+		}
     }
     
-    private function channelComplete(e:Event) 
+    private function channelComplete(e:Event)
 	{
 		this._isPlayed = false;
-		dispatchEvent( e.clone() );
+        dispatchEvent( e.clone() );
     }
 }
